@@ -22,7 +22,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test --transformIgnorePatterns \"node_modules/(?!axios)/\"",
+    "test": "react-scripts test --transformIgnorePatterns \"node_modules/(?!(axios|react-markdown|rehype-raw|remark-gfm|unist-util-visit-parents|mdast-util-to-hast|unist-util-visit))/\"",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -50,16 +50,19 @@
     "@babel/preset-react": "^7.25.9",
     "autoprefixer": "^10.4.20",
     "babel-jest": "^29.7.0",
+    "identity-obj-proxy": "^3.0.0",
     "jest-transform-stub": "^2.0.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14"
   },
   "jest": {
     "moduleNameMapper": {
-      "^axios$": "<rootDir>/node_modules/axios/dist/axios.js"
+      "^axios$": "<rootDir>/node_modules/axios/dist/axios.js",
+      "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+      "^unist-util-visit-parents/do-not-use-color$": "<rootDir>/node_modules/unist-util-visit-parents/lib/index.js"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!axios)/"
+      "node_modules/(?!(axios|react-markdown|rehype-raw|remark-gfm|unist-util-visit-parents|mdast-util-to-hast|unist-util-visit))/"
     ]
   }
 }

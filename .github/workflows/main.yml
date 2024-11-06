@@ -51,7 +51,7 @@ jobs:
       - name: Run React tests
         run: |
           cd frontend
-          npm test -- --passWithNoTests
+          npm test -- --watchAll=false --passWithNoTests
 
       # Configure AWS credentials
       - name: Configure AWS credentials
