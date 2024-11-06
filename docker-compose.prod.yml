@@ -3,6 +3,8 @@ version: '3.8'
 services:
   db:
     image: postgres:13
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -37,7 +39,7 @@ services:
       - chroma_data:/app/chroma_db
       - upload_data:/app/uploads
     ports:
-      - "5001:5000"
+      - "5001:5001"
     depends_on:
       - db
     networks:

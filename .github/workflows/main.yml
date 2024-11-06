@@ -148,12 +148,7 @@ jobs:
           
           # Copy files individually with error checking
           echo "Copying files to EC2..."
-          
-          echo "Copying docker-compose.prod.yml..."
-          scp -i ~/.ssh/id_rsa docker-compose.prod.yml ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/ || {
-            echo "Failed to copy docker-compose.prod.yml"
-            exit 1
-          }
+        
           
           echo "Copying .env.prod..."
           scp -i ~/.ssh/id_rsa .env.prod ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/ || {
@@ -194,3 +189,6 @@ jobs:
             echo '\nRunning containers:'
             docker ps
           "
+
+
+    
