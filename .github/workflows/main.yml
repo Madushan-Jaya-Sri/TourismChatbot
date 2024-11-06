@@ -115,80 +115,65 @@ jobs:
           
           # Test SSH connection
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "mkdir -p /home/ubuntu/deployment && chmod 755 /home/ubuntu/deployment"
-
-      - name: Deploy to EC2
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
-        run: |
-          # Debug step - show current files
-          echo "Current directory contents:"
-          pwd
-          ls -la
-          
-          # Create environment files
-          echo "Creating environment files..."
-          echo "ECR_REGISTRY=$ECR_REGISTRY" > .env.deploy
-          echo "POSTGRES_USER=$POSTGRES_USER" >> .env.deploy
-          echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env.deploy
-          echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env.deploy
-          echo "SECRET_KEY=$SECRET_KEY" >> .env.deploy
-          echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env.deploy
-          
-          # Test remote directory access
-          echo "Testing remote directory access..."
-          ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} "
-            echo 'Remote deployment directory contents:'
-            ls -la /home/ubuntu/deployment/
-          "
-          
-          # Copy files individually with error checking
-          echo "Copying files to EC2..."
-        
-          
-          echo "Copying .env.prod..."
-          scp -i ~/.ssh/id_rsa .env.prod ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/ || {
-            echo "Failed to copy .env.prod"
-            exit 1
-          }
-          
-          echo "Copying .env.deploy..."
-          scp -i ~/.ssh/id_rsa .env.deploy ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/ || {
-            echo "Failed to copy .env.deploy"
-            exit 1
-          }
-          
-          # Verify files were copied and deploy
-          echo "Starting deployment..."
-          ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} "
-            cd /home/ubuntu/deployment
-            
-            echo 'Deployment directory contents after copy:'
+          - name: Deploy to EC2
+          env:
+            ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+            POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            SECRET_KEY: ${{ secrets.SECRET_KEY }}
+            JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          run: |
+            # Debug step - show current files
+            echo "Current directory contents:"
+            pwd
             ls -la
             
-            # Login to ECR
-            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
-            
-            # Set up environment
-            cat .env.prod .env.deploy > .env
-            rm .env.deploy
-            
-            # Deploy
-            docker-compose -f docker-compose.prod.yml pull
-            docker-compose -f docker-compose.prod.yml down --remove-orphans
-            docker-compose -f docker-compose.prod.yml up -d
-            
-            # Cleanup
-            docker system prune -f
-            
-            # Show running containers
-            echo '\nRunning containers:'
-            docker ps
-          "
-
-
-    
+            # Create files directly on EC2
+            echo "Creating files on EC2..."
+            ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} "
+              # Create deployment directory if it doesn't exist
+              cd /home/ubuntu/deployment
+              
+              # Create docker-compose.prod.yml
+              cat > docker-compose.prod.yml << 'EOL'
+  $(cat docker-compose.prod.yml)
+  EOL
+              
+              # Create .env.prod
+              cat > .env.prod << 'EOL'
+  $(cat .env.prod)
+  EOL
+              
+              # Create .env.deploy
+              cat > .env.deploy << 'EOL'
+  ECR_REGISTRY=$ECR_REGISTRY
+  POSTGRES_USER=$POSTGRES_USER
+  POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+  OPENAI_API_KEY=$OPENAI_API_KEY
+  SECRET_KEY=$SECRET_KEY
+  JWT_SECRET_KEY=$JWT_SECRET_KEY
+  EOL
+              
+              echo 'Files created. Directory contents:'
+              ls -la
+              
+              # Login to ECR
+              aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
+              
+              # Set up environment
+              cat .env.prod .env.deploy > .env
+              rm .env.deploy
+              
+              # Deploy
+              docker-compose -f docker-compose.prod.yml pull
+              docker-compose -f docker-compose.prod.yml down --remove-orphans
+              docker-compose -f docker-compose.prod.yml up -d
+              
+              # Cleanup
+              docker system prune -f
+              
+              # Show running containers
+              echo '\nRunning containers:'
+              docker ps
+            "
