@@ -113,6 +113,16 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
+      # Debug step to verify files
+      - name: Debug Files
+        run: |
+          pwd
+          ls -la
+          echo "Checking for docker-compose.prod.yml:"
+          ls -la docker-compose.prod.yml || echo "File not found"
+          echo "Checking for .env.prod:"
+          ls -la .env.prod || echo "File not found"
+
       # Copy configuration files and deploy
       - name: Deploy to EC2
         env:
@@ -131,25 +141,28 @@ jobs:
           echo "SECRET_KEY=$SECRET_KEY" >> .env.deploy
           echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env.deploy
           
-          # Copy necessary files to EC2
-          scp -o StrictHostKeyChecking=no docker-compose.prod.yml ubuntu@${{ secrets.EC2_HOST }}:~/docker-compose.yml
-          scp -o StrictHostKeyChecking=no .env.prod ubuntu@${{ secrets.EC2_HOST }}:~/.env
-          scp -o StrictHostKeyChecking=no .env.deploy ubuntu@${{ secrets.EC2_HOST }}:~/.env.secrets
+          # Copy necessary files to EC2 (keeping original names)
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no docker-compose.prod.yml ubuntu@${{ secrets.EC2_HOST }}:~/docker-compose.prod.yml
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.prod ubuntu@${{ secrets.EC2_HOST }}:~/.env.prod
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.deploy ubuntu@${{ secrets.EC2_HOST }}:~/.env.deploy
           
           # Execute deployment commands on EC2
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "
+            echo 'Debugging: Current directory contents:'
+            pwd
+            ls -la
+            
             # Login to ECR
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
             
             # Combine environment files
-            cat .env .env.secrets > .env.combined
-            mv .env.combined .env
-            rm .env.secrets
+            cat .env.prod .env.deploy > .env
+            rm .env.deploy
             
-            # Pull and restart containers
-            docker-compose pull
-            docker-compose down --remove-orphans
-            docker-compose up -d
+            # Pull and restart containers using the correct filename
+            docker-compose -f docker-compose.prod.yml pull
+            docker-compose -f docker-compose.prod.yml down --remove-orphans
+            docker-compose -f docker-compose.prod.yml up -d
             
             # Clean up old images
             docker system prune -f
