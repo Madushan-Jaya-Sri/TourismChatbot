@@ -105,39 +105,16 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Setup SSH with debugging
-      - name: Setup SSH with debugging
+      # Setup SSH
+      - name: Setup SSH
         run: |
-          # Create .ssh directory
           mkdir -p ~/.ssh
-          
-          # Save private key
-          echo "Saving private key..."
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-          
-          # Set correct permissions
-          chmod 700 ~/.ssh
           chmod 600 ~/.ssh/id_rsa
-          
-          # Add host key
-          echo "Adding host key..."
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
           
-          # Test SSH connection with verbose output
-          echo "Testing SSH connection..."
-          ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "echo 'SSH test successful'"
-
-      # Enhanced debug step
-      - name: Debug Files and Environment
-        run: |
-          echo "Current directory: $PWD"
-          echo "Repository root: $GITHUB_WORKSPACE"
-          echo "List all files including hidden ones:"
-          ls -la
-          echo "\nList files in root:"
-          find . -maxdepth 1 -type f
-          echo "\nList all docker-compose files:"
-          find . -name "docker-compose*"
+          # Test SSH connection
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "mkdir -p /home/ubuntu/deployment && chmod 755 /home/ubuntu/deployment"
 
       # Deploy to EC2
       - name: Deploy to EC2
@@ -149,13 +126,9 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: |
-          # Create deployment directory with verbose SSH output
-          echo "Creating deployment directory..."
-          ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "
-            mkdir -p ~/deployment
-            chmod 755 ~/deployment
-            echo 'Directory created successfully'
-          "
+          # Debug current directory
+          echo "Current directory: $(pwd)"
+          ls -la
           
           # Create environment files
           echo "Creating environment files..."
@@ -166,25 +139,21 @@ jobs:
           echo "SECRET_KEY=$SECRET_KEY" >> .env.deploy
           echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env.deploy
           
-          # Debug: Show files to be copied
-          echo "Files to be copied:"
-          ls -l docker-compose.prod.yml .env.prod .env.deploy || echo "Some files not found"
+          # Copy each file individually with confirmation
+          echo "Copying docker-compose.prod.yml..."
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no docker-compose.prod.yml ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
           
-          # Copy files with verbose output
-          echo "Copying files..."
-          scp -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no docker-compose.prod.yml ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
-          scp -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.prod ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
-          scp -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.deploy ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
+          echo "Copying .env.prod..."
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.prod ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
           
-          # Deploy with verbose SSH output
-          echo "Deploying..."
-          ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "
-            cd ~/deployment
+          echo "Copying .env.deploy..."
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.deploy ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
+          
+          # Verify files and deploy
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "
+            cd /home/ubuntu/deployment
             
-            echo 'Current directory:'
-            pwd
-            
-            echo 'Directory contents:'
+            echo 'Verifying files:'
             ls -la
             
             # Login to ECR
