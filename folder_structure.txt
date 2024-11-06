@@ -1,0 +1,109 @@
+
+Tourismchatbot
+.
+├── README.md
+├── backend
+│   ├── app
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-311.pyc
+│   │   │   └── config.cpython-311.pyc
+│   │   ├── config.py
+│   │   ├── models
+│   │   │   ├── __pycache__
+│   │   │   │   ├── chat.cpython-311.pyc
+│   │   │   │   └── user.cpython-311.pyc
+│   │   │   ├── chat.py
+│   │   │   └── user.py
+│   │   ├── routes
+│   │   │   ├── __pycache__
+│   │   │   │   ├── admin.cpython-311.pyc
+│   │   │   │   ├── auth.cpython-311.pyc
+│   │   │   │   └── chat.cpython-311.pyc
+│   │   │   ├── admin.py
+│   │   │   ├── auth.py
+│   │   │   └── chat.py
+│   │   └── services
+│   │       ├── __pycache__
+│   │       │   ├── chat_service.cpython-311.pyc
+│   │       │   └── pdf_processor.cpython-311.pyc
+│   │       ├── chat_service.py
+│   │       ├── embedding_service.py
+│   │       └── pdf_processor.py
+│   ├── check.py
+│   ├── chroma_db
+│   │   └── chroma.sqlite3
+│   ├── create_admin.py
+│   ├── requirements.txt
+│   ├── run.py
+│   ├── test_AWS.py
+│   └── test_db.py
+├── chatbot-tourism.pem
+├── docker
+│   ├── Dockerfile.backend
+│   └── Dockerfile.frontend
+├── docker-compose.prod.yml
+├── folder_structure.txt
+└── frontend
+    ├── README.md
+    ├── build
+    │   ├── asset-manifest.json
+    │   ├── favicon.ico
+    │   ├── index.html
+    │   ├── logo.jpeg
+    │   ├── logo.webp
+    │   ├── logo192.png
+    │   ├── logo512.png
+    │   ├── manifest.json
+    │   ├── robots.txt
+    │   └── static
+    │       ├── css
+    │       │   ├── main.14a6374b.css
+    │       │   └── main.14a6374b.css.map
+    │       └── js
+    │           ├── main.37454718.js
+    │           ├── main.37454718.js.LICENSE.txt
+    │           └── main.37454718.js.map
+    ├── nginx.conf
+    ├── package-lock.json
+    ├── package.json
+    ├── postcss.config.js
+    ├── public
+    │   ├── favicon.ico
+    │   ├── index.html
+    │   ├── logo.jpeg
+    │   ├── logo.webp
+    │   ├── logo192.png
+    │   ├── logo512.png
+    │   ├── manifest.json
+    │   └── robots.txt
+    ├── src
+    │   ├── App.css
+    │   ├── App.js
+    │   ├── App.test.js
+    │   ├── components
+    │   │   ├── Admin
+    │   │   │   ├── Dashboard.js
+    │   │   │   └── FileUpload.js
+    │   │   ├── Auth
+    │   │   │   ├── Login.js
+    │   │   │   └── Register.js
+    │   │   ├── Chat
+    │   │   │   ├── ChatHistory.js
+    │   │   │   ├── ChatWindow.js
+    │   │   │   ├── MessageBubble.js
+    │   │   │   └── WelcomeScreen.js
+    │   │   └── common
+    │   │       ├── Loading.js
+    │   │       └── Navbar.js
+    │   ├── index.css
+    │   ├── index.js
+    │   ├── logo.svg
+    │   ├── reportWebVitals.js
+    │   ├── setupTests.js
+    │   └── utils
+    │       ├── api.js
+    │       └── auth.js
+    └── tailwind.config.js
+
+25 directories, 80 files
