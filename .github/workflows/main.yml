@@ -116,7 +116,6 @@ jobs:
           # Test SSH connection
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "mkdir -p /home/ubuntu/deployment && chmod 755 /home/ubuntu/deployment"
 
-      # Deploy to EC2
       - name: Deploy to EC2
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -126,8 +125,9 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: |
-          # Debug current directory
-          echo "Current directory: $(pwd)"
+          # Debug step - show current files
+          echo "Current directory contents:"
+          pwd
           ls -la
           
           # Create environment files
@@ -139,21 +139,40 @@ jobs:
           echo "SECRET_KEY=$SECRET_KEY" >> .env.deploy
           echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env.deploy
           
-          # Copy each file individually with confirmation
+          # Test remote directory access
+          echo "Testing remote directory access..."
+          ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} "
+            echo 'Remote deployment directory contents:'
+            ls -la /home/ubuntu/deployment/
+          "
+          
+          # Copy files individually with error checking
+          echo "Copying files to EC2..."
+          
           echo "Copying docker-compose.prod.yml..."
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no docker-compose.prod.yml ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
+          scp -i ~/.ssh/id_rsa docker-compose.prod.yml ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/ || {
+            echo "Failed to copy docker-compose.prod.yml"
+            exit 1
+          }
           
           echo "Copying .env.prod..."
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.prod ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
+          scp -i ~/.ssh/id_rsa .env.prod ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/ || {
+            echo "Failed to copy .env.prod"
+            exit 1
+          }
           
           echo "Copying .env.deploy..."
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.deploy ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
+          scp -i ~/.ssh/id_rsa .env.deploy ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/ || {
+            echo "Failed to copy .env.deploy"
+            exit 1
+          }
           
-          # Verify files and deploy
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "
+          # Verify files were copied and deploy
+          echo "Starting deployment..."
+          ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} "
             cd /home/ubuntu/deployment
             
-            echo 'Verifying files:'
+            echo 'Deployment directory contents after copy:'
             ls -la
             
             # Login to ECR
@@ -170,4 +189,8 @@ jobs:
             
             # Cleanup
             docker system prune -f
+            
+            # Show running containers
+            echo '\nRunning containers:'
+            docker ps
           "
