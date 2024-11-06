@@ -92,7 +92,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # Configure AWS credentials again for deployment
+      # Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -100,30 +100,46 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Login to Amazon ECR for deployment
+      # Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Setup SSH for EC2
-      - name: Setup SSH
+      # Setup SSH with debugging
+      - name: Setup SSH with debugging
         run: |
+          # Create .ssh directory
           mkdir -p ~/.ssh
+          
+          # Save private key
+          echo "Saving private key..."
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          
+          # Set correct permissions
+          chmod 700 ~/.ssh
           chmod 600 ~/.ssh/id_rsa
+          
+          # Add host key
+          echo "Adding host key..."
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          
+          # Test SSH connection with verbose output
+          echo "Testing SSH connection..."
+          ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "echo 'SSH test successful'"
 
-      # Debug step to verify files
-      - name: Debug Files
+      # Enhanced debug step
+      - name: Debug Files and Environment
         run: |
-          pwd
+          echo "Current directory: $PWD"
+          echo "Repository root: $GITHUB_WORKSPACE"
+          echo "List all files including hidden ones:"
           ls -la
-          echo "Checking for docker-compose.prod.yml:"
-          ls -la docker-compose.prod.yml || echo "File not found"
-          echo "Checking for .env.prod:"
-          ls -la .env.prod || echo "File not found"
+          echo "\nList files in root:"
+          find . -maxdepth 1 -type f
+          echo "\nList all docker-compose files:"
+          find . -name "docker-compose*"
 
-      # Copy configuration files and deploy
+      # Deploy to EC2
       - name: Deploy to EC2
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -133,7 +149,16 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: |
-          # Create temporary .env file with secrets
+          # Create deployment directory with verbose SSH output
+          echo "Creating deployment directory..."
+          ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "
+            mkdir -p ~/deployment
+            chmod 755 ~/deployment
+            echo 'Directory created successfully'
+          "
+          
+          # Create environment files
+          echo "Creating environment files..."
           echo "ECR_REGISTRY=$ECR_REGISTRY" > .env.deploy
           echo "POSTGRES_USER=$POSTGRES_USER" >> .env.deploy
           echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env.deploy
@@ -141,29 +166,39 @@ jobs:
           echo "SECRET_KEY=$SECRET_KEY" >> .env.deploy
           echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env.deploy
           
-          # Copy necessary files to EC2 (keeping original names)
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no docker-compose.prod.yml ubuntu@${{ secrets.EC2_HOST }}:~/docker-compose.prod.yml
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.prod ubuntu@${{ secrets.EC2_HOST }}:~/.env.prod
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.deploy ubuntu@${{ secrets.EC2_HOST }}:~/.env.deploy
+          # Debug: Show files to be copied
+          echo "Files to be copied:"
+          ls -l docker-compose.prod.yml .env.prod .env.deploy || echo "Some files not found"
           
-          # Execute deployment commands on EC2
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "
-            echo 'Debugging: Current directory contents:'
+          # Copy files with verbose output
+          echo "Copying files..."
+          scp -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no docker-compose.prod.yml ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
+          scp -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.prod ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
+          scp -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no .env.deploy ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/deployment/
+          
+          # Deploy with verbose SSH output
+          echo "Deploying..."
+          ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "
+            cd ~/deployment
+            
+            echo 'Current directory:'
             pwd
+            
+            echo 'Directory contents:'
             ls -la
             
             # Login to ECR
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
             
-            # Combine environment files
+            # Set up environment
             cat .env.prod .env.deploy > .env
             rm .env.deploy
             
-            # Pull and restart containers using the correct filename
+            # Deploy
             docker-compose -f docker-compose.prod.yml pull
             docker-compose -f docker-compose.prod.yml down --remove-orphans
             docker-compose -f docker-compose.prod.yml up -d
             
-            # Clean up old images
+            # Cleanup
             docker system prune -f
           "
