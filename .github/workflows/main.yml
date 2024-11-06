@@ -150,17 +150,7 @@ jobs:
           echo "Copying files to EC2..."
         
           
-          echo "Copying .env.prod..."
-          scp -i ~/.ssh/id_rsa .env.prod ubuntu@${{secrets.EC2_HOST}}:/home/ubuntu/deployment/ || {
-            echo "Failed to copy .env.prod"
-            exit 1
-          }
-          
-          echo "Copying .env.deploy..."
-          scp -i ~/.ssh/id_rsa .env.deploy ubuntu@${{secrets.EC2_HOST}}:/home/ubuntu/deployment/ || {
-            echo "Failed to copy .env.deploy"
-            exit 1
-          }
+
           
           # Verify files were copied and deploy
           echo "Starting deployment..."
